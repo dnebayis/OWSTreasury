@@ -123,13 +123,11 @@ export async function broadcastEVMTransaction(
   const s = `0x${clean.slice(64, 128)}` as `0x${string}`;
   const vRaw = parseInt(clean.slice(128, 130), 16);
 
-  // Normalize to yParity (0 or 1) — OWS may return 0/1 or 27/28
-  let yParity: 0 | 1;
-  if (vRaw === 0 || vRaw === 27) yParity = 0;
-  else if (vRaw === 1 || vRaw === 28) yParity = 1;
-  else yParity = (vRaw % 2) as 0 | 1;
+  // viem's serializeTransaction expects v as BigInt (27n or 28n for legacy).
+  // OWS may return recovery param as 0/1 or 27/28 — normalize to 27n/28n.
+  const v = vRaw === 0 || vRaw === 27 ? 27n : 28n;
 
-  const signedTx = serializeTransaction(unsignedTx, { r, s, yParity });
+  const signedTx = serializeTransaction(unsignedTx, { r, s, v });
   const hash = await evmClient.sendRawTransaction({ serializedTransaction: signedTx });
   return hash;
 }
