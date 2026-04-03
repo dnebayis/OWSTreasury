@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
     const { messages, model, apiKey: clientApiKey, baseURL: clientBaseURL } = await request.json();
 
     const apiKey = clientApiKey || process.env.QWEN_API_KEY;
-    const apiBase = clientBaseURL || process.env.QWEN_API_BASE || "https://dashscope.aliyuncs.com/compatible-mode/v1";
+    const apiBase = clientBaseURL || process.env.QWEN_API_BASE || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
     const defaultModel = process.env.QWEN_MODEL || "qwen-max";
     const selectedModel = model || defaultModel;
 
