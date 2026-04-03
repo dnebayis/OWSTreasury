@@ -9,6 +9,17 @@ import { v4 as uuidv4 } from "uuid";
 
 const execAsync = promisify(exec);
 
+// Resolve ows binary: prefer PATH, fall back to node_modules/.bin (Vercel serverless)
+const OWS_BIN = (() => {
+  try {
+    const local = path.join(process.cwd(), "node_modules", ".bin", "ows");
+    require("fs").accessSync(local);
+    return local;
+  } catch {
+    return "ows"; // rely on PATH locally
+  }
+})();
+
 // Use /tmp on serverless (Vercel), fall back to home dir locally
 const GLOBAL_VAULT_PATH = process.env.VERCEL
   ? path.join("/tmp", ".ows", "wallets")
@@ -72,7 +83,7 @@ export class OWSClient {
 
   async createWallet(walletName: string, _chains: string[]): Promise<Wallet> {
     return this.withTransientVault(async () => {
-      const { stdout } = await execAsync(`ows wallet create --name "${walletName}"`);
+      const { stdout } = await execAsync(`"${OWS_BIN}" wallet create --name "${walletName}"`);
       const addresses = this.parseWalletOutput(stdout);
       return { name: walletName, addresses, createdAt: new Date().toISOString() };
     });
@@ -81,7 +92,7 @@ export class OWSClient {
   async listWallets(): Promise<Wallet[]> {
     const allNames = await listVaultNames();
     return this.withTransientVault(async () => {
-      const { stdout } = await execAsync(`ows wallet list`);
+      const { stdout } = await execAsync(`"${OWS_BIN}" wallet list`);
       return this.parseListOutput(stdout);
     }, allNames);
   }
@@ -98,7 +109,7 @@ export class OWSClient {
     return this.withTransientVault(async () => {
       let txHex = typeof txData === "string" ? txData : txData.hex || "";
       const { stdout } = await execAsync(
-        `ows sign tx --wallet "${walletName}" --chain ${chain} --tx "${txHex}"`
+        `"${OWS_BIN}" sign tx --wallet "${walletName}" --chain ${chain} --tx "${txHex}"`
       );
       return stdout.trim();
     }, allNames);
