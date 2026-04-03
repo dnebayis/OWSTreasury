@@ -175,5 +175,5 @@ export async function getVaultData(name: string): Promise<string | null> {
 export async function listVaultNames(): Promise<string[]> {
   if (!supabase) return [];
   const { data } = await supabase.from("vault_data").select("name");
-  return (data || []).map(d => d.name);
+  return (data || []).map((d: { name: string }) => d.name);
 }
