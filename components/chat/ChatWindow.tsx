@@ -406,17 +406,17 @@ export default function ChatWindow() {
             </div>
           )}
           {/* Twitter link */}
-          <div className="max-w-3xl mx-auto flex justify-end mt-2">
+          <div className="max-w-3xl mx-auto flex justify-center mt-3">
             <a
               href="https://x.com/siyabaldacc"
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-1.5 text-[11px] text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border/40 bg-muted/20 hover:bg-muted/40 hover:border-border/70 transition-all group"
             >
-              <svg viewBox="0 0 24 24" className="h-3 w-3 fill-current" aria-hidden="true">
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-current text-foreground/60 group-hover:text-foreground transition-colors" aria-hidden="true">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
               </svg>
-              @siyabaldacc
+              <span className="text-xs font-medium text-foreground/60 group-hover:text-foreground transition-colors">@siyabaldacc</span>
             </a>
           </div>
         </footer>
