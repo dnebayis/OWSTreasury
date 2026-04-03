@@ -23,17 +23,32 @@ const PRESET_MODELS = [
   { label: "Qwen Max", value: "qwen-max", group: "Qwen" },
   { label: "Qwen Plus", value: "qwen-plus", group: "Qwen" },
   { label: "Qwen Turbo", value: "qwen-turbo", group: "Qwen" },
+  { label: "Qwen Long", value: "qwen-long", group: "Qwen" },
+  { label: "Qwen3.6 Plus", value: "qwen3.6-plus", group: "Qwen" },
+  { label: "Qwen2.5 72B Instruct", value: "qwen2.5-72b-instruct", group: "Qwen" },
+  { label: "Qwen2.5 32B Instruct", value: "qwen2.5-32b-instruct", group: "Qwen" },
+  { label: "Qwen2.5 14B Instruct", value: "qwen2.5-14b-instruct", group: "Qwen" },
+  { label: "Qwen2.5 7B Instruct", value: "qwen2.5-7b-instruct", group: "Qwen" },
   { label: "GPT-4o", value: "gpt-4o", group: "OpenAI" },
   { label: "GPT-4o Mini", value: "gpt-4o-mini", group: "OpenAI" },
   { label: "Custom", value: "__custom__", group: "Other" },
 ];
 
+const QWEN_INTL = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
+const OPENAI_BASE = "https://api.openai.com/v1";
+
 const BASE_URL_PRESETS: Record<string, string> = {
-  "qwen-max": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-  "qwen-plus": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-  "qwen-turbo": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
-  "gpt-4o": "https://api.openai.com/v1",
-  "gpt-4o-mini": "https://api.openai.com/v1",
+  "qwen-max": QWEN_INTL,
+  "qwen-plus": QWEN_INTL,
+  "qwen-turbo": QWEN_INTL,
+  "qwen-long": QWEN_INTL,
+  "qwen3.6-plus": QWEN_INTL,
+  "qwen2.5-72b-instruct": QWEN_INTL,
+  "qwen2.5-32b-instruct": QWEN_INTL,
+  "qwen2.5-14b-instruct": QWEN_INTL,
+  "qwen2.5-7b-instruct": QWEN_INTL,
+  "gpt-4o": OPENAI_BASE,
+  "gpt-4o-mini": OPENAI_BASE,
 };
 
 export function loadLLMConfig(): LLMConfig {
