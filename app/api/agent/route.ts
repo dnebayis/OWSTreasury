@@ -6,10 +6,10 @@ import { toolExecutor } from "@/lib/agent/executor.server";
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, model, baseURL: clientBaseURL } = await request.json();
+    const { messages, model } = await request.json();
 
     const apiKey = process.env.QWEN_API_KEY;
-    const apiBase = clientBaseURL || process.env.QWEN_API_BASE || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
+    const apiBase = process.env.QWEN_API_BASE || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
     const defaultModel = process.env.QWEN_MODEL || "qwen-max";
     const selectedModel = model || defaultModel;
 
