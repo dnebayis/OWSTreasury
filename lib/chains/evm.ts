@@ -1,4 +1,4 @@
-import { createPublicClient, http, formatEther, parseEther, serializeTransaction } from "viem";
+import { createPublicClient, http, formatEther, parseEther, serializeTransaction, getAddress } from "viem";
 import { sepolia } from "viem/chains";
 
 /**
@@ -95,7 +95,7 @@ export async function buildUnsignedEVMTransaction(params: {
     nonce,
     gasPrice,
     gas: BigInt(21000),
-    to: to as `0x${string}`,
+    to: getAddress(to),  // normalize to EIP-55 checksum format
     value: parseEther(amount),
     chainId: sepolia.id,
   };
