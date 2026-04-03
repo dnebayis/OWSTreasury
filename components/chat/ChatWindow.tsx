@@ -97,8 +97,8 @@ export default function ChatWindow() {
         body: JSON.stringify({
           messages: [...messages, userMessage],
           model: llmConfig.model || undefined,
-          apiKey: llmConfig.apiKey || undefined,
-          // Only send baseURL if user explicitly customised it
+          // Never send apiKey from client — always use server env var
+          // Only send baseURL if user explicitly changed it from the default
           baseURL: llmConfig.baseURL !== DEFAULT_LLM_CONFIG.baseURL ? llmConfig.baseURL : undefined,
         }),
       });

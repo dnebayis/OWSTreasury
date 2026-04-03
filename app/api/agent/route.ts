@@ -6,17 +6,12 @@ import { toolExecutor } from "@/lib/agent/executor.server";
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, model, apiKey: clientApiKey, baseURL: clientBaseURL } = await request.json();
+    const { messages, model, baseURL: clientBaseURL } = await request.json();
 
-    const apiKey = clientApiKey || process.env.QWEN_API_KEY;
+    const apiKey = process.env.QWEN_API_KEY;
     const apiBase = clientBaseURL || process.env.QWEN_API_BASE || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1";
     const defaultModel = process.env.QWEN_MODEL || "qwen-max";
     const selectedModel = model || defaultModel;
-
-    console.log("[agent] source:", clientApiKey ? "client" : "env");
-    console.log("[agent] key:", apiKey ? apiKey.slice(0, 8) + "..." : "MISSING");
-    console.log("[agent] base:", apiBase);
-    console.log("[agent] model:", selectedModel);
 
     const qwenClient = new OpenAI({
       apiKey,

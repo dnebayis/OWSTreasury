@@ -3,19 +3,17 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Save, Eye, EyeOff, RotateCcw, CheckCircle } from "lucide-react";
+import { Save, RotateCcw, CheckCircle } from "lucide-react";
 
 export const LLM_STORAGE_KEY = "ows_llm_config";
 
 export interface LLMConfig {
   model: string;
-  apiKey: string;
   baseURL: string;
 }
 
 export const DEFAULT_LLM_CONFIG: LLMConfig = {
   model: "qwen-max",
-  apiKey: "",
   baseURL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
 };
 
@@ -64,7 +62,6 @@ export function loadLLMConfig(): LLMConfig {
 
 export default function LLMSettings() {
   const [config, setConfig] = useState<LLMConfig>(DEFAULT_LLM_CONFIG);
-  const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
   const [isCustomModel, setIsCustomModel] = useState(false);
   const [customModel, setCustomModel] = useState("");
@@ -79,7 +76,7 @@ export default function LLMSettings() {
       setCustomModel(stored.model);
       setConfig({ ...stored, model: "__custom__" });
     } else {
-      setConfig(stored);
+      setConfig({ model: stored.model, baseURL: stored.baseURL });
     }
   }, []);
 
@@ -122,7 +119,7 @@ export default function LLMSettings() {
       <div>
         <h2 className="text-base font-semibold text-foreground mb-0.5">LLM Configuration</h2>
         <p className="text-xs text-muted-foreground">
-          Settings are saved in your browser. The server falls back to environment variables if no key is provided.
+          Model and base URL are saved in your browser. API key is always read from the server environment.
         </p>
       </div>
 
@@ -172,30 +169,6 @@ export default function LLMSettings() {
         <p className="text-[11px] text-muted-foreground">Any OpenAI-compatible endpoint (Qwen, Groq, Together, etc.)</p>
       </div>
 
-      {/* API Key */}
-      <div className="space-y-2">
-        <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">API Key</label>
-        <div className="relative">
-          <Input
-            type={showKey ? "text" : "password"}
-            value={config.apiKey}
-            onChange={(e) => setConfig((c) => ({ ...c, apiKey: e.target.value }))}
-            placeholder="sk-..."
-            className="h-9 bg-background/60 border-border/50 text-sm font-mono pr-10"
-          />
-          <button
-            type="button"
-            onClick={() => setShowKey((v) => !v)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-          >
-            {showKey ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
-          </button>
-        </div>
-        <p className="text-[11px] text-muted-foreground">
-          Stored only in your browser's localStorage. Leave blank to use the server's env key.
-        </p>
-      </div>
-
       {/* Actions */}
       <div className="flex items-center gap-2 pt-1">
         <Button
@@ -225,7 +198,7 @@ export default function LLMSettings() {
         {[
           { label: "Model", value: isCustomModel ? customModel || "—" : config.model },
           { label: "Base URL", value: config.baseURL || "—" },
-          { label: "API Key", value: config.apiKey ? `${config.apiKey.slice(0, 6)}${"•".repeat(12)}` : "Using server env" },
+          { label: "API Key", value: "Server env var" },
         ].map(({ label, value }) => (
           <div key={label} className="flex items-center justify-between gap-4">
             <span className="text-[11px] text-muted-foreground shrink-0">{label}</span>
