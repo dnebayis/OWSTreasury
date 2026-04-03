@@ -10,11 +10,12 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import {
   Send, AlertCircle, Shield, X, ArrowLeft,
-  Wallet, Activity, Plus, Zap, CornerDownLeft,
+  Wallet, Activity, Plus, Zap, CornerDownLeft, Settings,
 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import dynamic from "next/dynamic";
 import PolicyConfig from "../dashboard/PolicyConfig";
+import LLMSettings, { loadLLMConfig } from "../dashboard/LLMSettings";
 
 interface PendingTransaction {
   walletName: string;
@@ -63,7 +64,7 @@ export default function ChatWindow() {
   } = useChatStore();
 
   const [input, setInput] = useState("");
-  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [activePanel, setActivePanel] = useState<"chat" | "policy" | "settings">("chat");
   const [pendingTx, setPendingTx] = useState<PendingTransaction | null>(null);
   const [isSigning, setIsSigning] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -89,10 +90,16 @@ export default function ChatWindow() {
     setError(null);
 
     try {
+      const llmConfig = loadLLMConfig();
       const response = await fetch("/api/agent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: [...messages, userMessage] }),
+        body: JSON.stringify({
+          messages: [...messages, userMessage],
+          model: llmConfig.model || undefined,
+          apiKey: llmConfig.apiKey || undefined,
+          baseURL: llmConfig.baseURL || undefined,
+        }),
       });
 
       if (!response.ok) {
@@ -232,16 +239,22 @@ export default function ChatWindow() {
 
           {/* Actions */}
           <div className="flex items-center gap-1">
-            {!isAdminOpen ? (
-              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground" onClick={() => setIsAdminOpen(true)}>
-                <Shield className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Policy</span>
-              </Button>
-            ) : (
-              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground" onClick={() => setIsAdminOpen(false)}>
+            {activePanel !== "chat" ? (
+              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground" onClick={() => setActivePanel("chat")}>
                 <ArrowLeft className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">Back</span>
               </Button>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground" onClick={() => setActivePanel("policy")}>
+                  <Shield className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Policy</span>
+                </Button>
+                <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground" onClick={() => setActivePanel("settings")}>
+                  <Settings className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">LLM</span>
+                </Button>
+              </>
             )}
             <Button
               variant="ghost"
@@ -257,9 +270,13 @@ export default function ChatWindow() {
 
         {/* ── Content ── */}
         <div className="flex-1 overflow-y-auto">
-          {isAdminOpen ? (
+          {activePanel === "policy" ? (
             <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-6">
-              <PolicyConfig onClose={() => setIsAdminOpen(false)} />
+              <PolicyConfig onClose={() => setActivePanel("chat")} />
+            </div>
+          ) : activePanel === "settings" ? (
+            <div className="max-w-lg mx-auto w-full px-4 sm:px-6 py-6">
+              <LLMSettings />
             </div>
           ) : (
             <div className="max-w-3xl mx-auto w-full px-4 sm:px-6 py-6 space-y-2">
@@ -353,8 +370,8 @@ export default function ChatWindow() {
         </div>
 
         {/* ── Input footer ── */}
-        {!isAdminOpen && (
-          <footer className="shrink-0 border-t border-border/50 bg-black/10 px-4 sm:px-6 py-4">
+        <footer className="shrink-0 border-t border-border/50 bg-black/10 px-4 sm:px-6 py-4">
+          {activePanel === "chat" ? (
             <div className="max-w-3xl mx-auto flex gap-2 items-end">
               <div className="relative flex-1">
                 <Input
@@ -383,8 +400,26 @@ export default function ChatWindow() {
                 <Send className="h-4 w-4" />
               </Button>
             </div>
-          </footer>
-        )}
+          ) : (
+            <div className="max-w-3xl mx-auto flex items-center justify-center">
+              <span className="text-xs text-muted-foreground/40 font-mono">OWS Treasury Agent</span>
+            </div>
+          )}
+          {/* Twitter link */}
+          <div className="max-w-3xl mx-auto flex justify-end mt-2">
+            <a
+              href="https://x.com/siyabaldacc"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 text-[11px] text-muted-foreground/40 hover:text-muted-foreground/70 transition-colors"
+            >
+              <svg viewBox="0 0 24 24" className="h-3 w-3 fill-current" aria-hidden="true">
+                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.748l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.911-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+              </svg>
+              @siyabaldacc
+            </a>
+          </div>
+        </footer>
       </Card>
     </div>
   );

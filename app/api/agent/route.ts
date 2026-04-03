@@ -5,18 +5,18 @@ import { TOOLS } from "@/lib/agent/tools";
 import { toolExecutor } from "@/lib/agent/executor.server";
 
 export async function POST(request: NextRequest) {
-  const apiKey = process.env.QWEN_API_KEY;
-  const apiBase = process.env.QWEN_API_BASE || "https://dashscope.aliyuncs.com/compatible-mode/v1";
-  const defaultModel = process.env.QWEN_MODEL || "qwen-max";
-
-  const qwenClient = new OpenAI({
-    apiKey: apiKey,
-    baseURL: apiBase,
-  });
-
   try {
-    const { messages, model } = await request.json();
+    const { messages, model, apiKey: clientApiKey, baseURL: clientBaseURL } = await request.json();
+
+    const apiKey = clientApiKey || process.env.QWEN_API_KEY;
+    const apiBase = clientBaseURL || process.env.QWEN_API_BASE || "https://dashscope.aliyuncs.com/compatible-mode/v1";
+    const defaultModel = process.env.QWEN_MODEL || "qwen-max";
     const selectedModel = model || defaultModel;
+
+    const qwenClient = new OpenAI({
+      apiKey,
+      baseURL: apiBase,
+    });
 
     const encoder = new TextEncoder();
 

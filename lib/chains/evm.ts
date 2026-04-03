@@ -125,7 +125,7 @@ export async function broadcastEVMTransaction(
 
   // viem's serializeTransaction expects v as BigInt (27n or 28n for legacy).
   // OWS may return recovery param as 0/1 or 27/28 — normalize to 27n/28n.
-  const v = vRaw === 0 || vRaw === 27 ? 27n : 28n;
+  const v = BigInt(vRaw === 0 || vRaw === 27 ? 27 : 28);
 
   const signedTx = serializeTransaction(unsignedTx, { r, s, v });
   const hash = await evmClient.sendRawTransaction({ serializedTransaction: signedTx });
