@@ -1,0 +1,349 @@
+# OWS Treasury Agent
+
+> *"Talk to your wallet like a person. Sign like a vault."*
+
+An AI-powered, policy-gated treasury manager built on the **Open Wallet Standard (OWS)**. Manage assets across Ethereum Sepolia and Solana devnet using natural language — all signing stays inside the OWS encrypted vault.
+
+**Built for the Open Wallet Standard Hackathon.**
+
+---
+
+## How It Works
+
+```mermaid
+flowchart TD
+    User(["👤 User"])
+    Chat["Chat UI\n(Next.js)"]
+    Agent["Qwen AI Agent\n/api/agent"]
+    Executor["Tool Executor\n11 tools"]
+    Policy["Policy Engine"]
+    OWS["OWS CLI\nows wallet / ows sign"]
+    EVM["viem\nSepolia RPC"]
+    SOL["@solana/web3.js\nDevnet RPC"]
+    DB[("Supabase\nCloud DB")]
+    Vault["~/.ows/wallets\nTransient Local"]
+    SignAPI["POST /api/wallet/sign"]
+
+    User -->|"Natural language"| Chat
+    Chat -->|"POST /api/agent\nNDJSON stream"| Agent
+    Agent -->|"Tool calls"| Executor
+
+    Executor --> Policy
+    Executor --> OWS
+    Executor --> EVM
+    Executor --> SOL
+    Executor --> DB
+
+    OWS <-->|"Restore → Run → Purge"| Vault
+    Vault <-->|"Sync encrypted blob"| DB
+
+    Agent -->|"pending_approval event"| Chat
+    Chat -->|"User clicks Authorize"| SignAPI
+    SignAPI --> Executor
+```
+
+### Transaction Approval Flow
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Chat as Chat UI
+    participant Agent as Qwen Agent
+    participant Policy as Policy Engine
+    participant OWS as OWS Vault
+
+    User->>Chat: "Send 0.01 ETH to 0x..."
+    Chat->>Agent: POST /api/agent
+    Agent->>Agent: simulate_transaction
+    Agent->>Policy: check_policy
+    Policy-->>Agent: ✅ allowed
+    Agent-->>Chat: pending_approval event
+    Chat-->>User: Shows TransactionCard
+    User->>Chat: Click "Authorize & Sign"
+    Chat->>OWS: POST /api/wallet/sign
+    OWS->>OWS: ows sign tx (key never leaves vault)
+    OWS-->>Chat: tx hash
+    Chat-->>User: ✅ Broadcast confirmation
+```
+
+### Storage Architecture
+
+```mermaid
+flowchart LR
+    subgraph "OWS Vault (Cloud-Native)"
+        direction TB
+        A["OWS CLI operation"] --> B["Restore from Supabase\n→ ~/.ows/*.json"]
+        B --> C["Execute CLI command"]
+        C --> D["Sync back to Supabase"]
+        D --> E["Purge local files"]
+    end
+
+    subgraph "Supabase (Persistent)"
+        V["vault_data\nEncrypted wallet blobs"]
+        W["wallets\nMetadata index"]
+        AL["audit_logs\nAll operations"]
+        WL["whitelist_addresses"]
+        PS["policy_settings"]
+        CM["chat_messages"]
+    end
+```
+
+---
+
+## Features
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Natural language interface | ✅ | Qwen AI with 11 tools |
+| Multi-chain support | ✅ | Ethereum Sepolia + Solana Devnet |
+| Policy engine | ✅ | Spending limit, velocity, whitelist, testnet-only |
+| Transaction simulation | ✅ | Gas preview before signing |
+| Client-side approval UI | ✅ | TransactionCard — never auto-signs |
+| Secure signing | ✅ | Private keys stay in OWS vault |
+| Policy Admin panel | ✅ | Whitelist management, guardrail configuration |
+| Chat history | ✅ | Supabase-persisted across sessions |
+| Audit log | ✅ | All operations recorded |
+| Markdown rendering | ✅ | Tables, code blocks, bold in AI responses |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router) |
+| Language | TypeScript 5 (strict) |
+| Styling | Tailwind CSS 4 + shadcn/ui |
+| State | Zustand 5 |
+| AI | Qwen via OpenAI-compatible API |
+| Wallet | @open-wallet-standard/core |
+| EVM | viem 2 (Sepolia) |
+| Solana | @solana/web3.js (Devnet) |
+| Database | Supabase (all persistence) |
+| Validation | Zod 4 |
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Node.js 18+ with pnpm
+- Qwen API key (Alibaba DashScope)
+- Infura Sepolia RPC endpoint
+- Supabase project (free tier works)
+- OWS CLI installed
+
+### 1. Install
+
+```bash
+cd ows-treasury-agent
+pnpm install
+```
+
+### 2. Set Up Supabase
+
+Run the following SQL in your Supabase project's **SQL Editor**:
+
+```sql
+create table vault_data (
+  name text primary key,
+  encrypted_blob text not null
+);
+
+create table wallets (
+  name text primary key,
+  addresses jsonb not null,
+  created_at timestamptz default now()
+);
+
+create table audit_logs (
+  id uuid primary key,
+  timestamp timestamptz not null,
+  wallet_name text,
+  chain text,
+  operation text,
+  status text,
+  tx_hash text,
+  amount text,
+  to_address text,
+  policy_result jsonb,
+  user_approved boolean default false
+);
+
+create table whitelist_addresses (
+  id uuid primary key default gen_random_uuid(),
+  address text not null,
+  label text,
+  chain text not null
+);
+
+create table policy_settings (
+  id text primary key,
+  name text not null,
+  value jsonb,
+  is_enabled boolean default false,
+  updated_at timestamptz default now()
+);
+
+create table chat_messages (
+  id uuid primary key,
+  role text not null,
+  content text not null,
+  tool_calls jsonb,
+  timestamp timestamptz default now()
+);
+
+-- Seed default policy guardrails
+insert into policy_settings (id, name, value, is_enabled) values
+  ('spending-limit', 'Daily Spending Limit', '{"limitUSD": 100}', false),
+  ('velocity-limit', 'Velocity Limit', '{"maxPerHour": 3}', false);
+```
+
+### 3. Configure Environment
+
+Create `.env.local`:
+
+```bash
+# Qwen AI
+QWEN_API_KEY=sk-...
+QWEN_API_BASE=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+QWEN_MODEL=qwen-max
+
+# RPC Endpoints
+NEXT_PUBLIC_EVM_RPC=https://sepolia.infura.io/v3/YOUR_KEY
+NEXT_PUBLIC_SOLANA_RPC=https://api.devnet.solana.com
+
+# Supabase
+NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+
+# OWS Vault
+OWS_VAULT_PATH=~/.ows/wallets
+```
+
+### 4. Install OWS CLI
+
+```bash
+npm install -g @open-wallet-standard/core
+ows init --vault ~/.ows/wallets
+```
+
+### 5. Run
+
+```bash
+pnpm dev
+# → http://localhost:3000
+```
+
+---
+
+## Agent Tools (11 total)
+
+| Tool | Description |
+|------|-------------|
+| `create_wallet` | Create encrypted multi-chain wallet |
+| `list_wallets` | List all wallets in vault |
+| `get_balance` | Fetch live on-chain balance |
+| `simulate_transaction` | Preview gas costs |
+| `check_policy` | Validate against spending/chain limits |
+| `sign_and_send_transaction` | Sign with OWS vault — triggers client approval UI |
+| `get_transaction_history` | View audit logs |
+| `list_whitelist` | Show approved addresses |
+| `add_to_whitelist` | Add trusted recipient |
+| `remove_from_whitelist` | Remove by ID |
+| `update_policy_setting` | Toggle/configure guardrails |
+
+---
+
+## Policy Engine
+
+Policies are evaluated in order before every transaction:
+
+| Policy | Default | Configurable |
+|--------|---------|-------------|
+| Testnet only | Always ON | No (hardcoded) |
+| Whitelist | OFF | Yes — via Policy Admin |
+| Daily spending limit | OFF | Yes — toggle + set $amount |
+| Velocity limit | OFF | Yes — toggle + set tx/hour |
+
+---
+
+## API Reference
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/agent` | Streaming Qwen agent (NDJSON) |
+| GET | `/api/wallet/list` | List all wallets |
+| POST | `/api/wallet/create` | Create new wallet |
+| POST | `/api/wallet/balance` | Get wallet balance |
+| POST | `/api/wallet/sign` | Execute approved signing |
+| GET | `/api/summary` | Dashboard stats |
+
+---
+
+## Security Model
+
+```
+User Request
+    │
+    ▼
+Qwen Agent decides to call sign_and_send_transaction
+    │
+    ▼ (agent route intercepts — does NOT execute)
+pending_approval event → Client
+    │
+    ▼
+User sees TransactionCard (from, to, amount, gas, policy status)
+    │
+    ├─── User clicks "Authorize & Sign"
+    │         │
+    │         ▼
+    │    POST /api/wallet/sign
+    │         │
+    │         ▼
+    │    OWS CLI: ows sign tx (private key never leaves vault)
+    │         │
+    │         ▼
+    │    Broadcast to chain → return tx hash
+    │
+    └─── User clicks "Terminate"
+              │
+              ▼
+         Transaction cancelled, no signing occurs
+```
+
+- Private keys are **never** accessible to application code
+- Every signing operation requires **explicit user click**
+- Policy engine runs **before** the approval card appears
+- All operations are recorded in **Supabase audit_logs**
+
+---
+
+## Testnet Faucets
+
+**Ethereum Sepolia**: https://sepoliafaucet.com
+
+**Solana Devnet**:
+```bash
+solana airdrop 2 <YOUR_ADDRESS> --url https://api.devnet.solana.com
+```
+
+---
+
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Wallet not found | Run `ows init --vault ~/.ows/wallets` |
+| API key error | Check `QWEN_API_KEY` in `.env.local`, restart server |
+| Policy always blocks | Check Supabase `policy_settings` table has seed rows |
+| Whitelist blocks all | Disable whitelist in Policy Admin panel |
+| Supabase empty | Run the SQL schema setup above |
+| RPC timeout | Verify Infura/RPC URLs in `.env.local` |
+
+---
+
+## License
+
+MIT — Built for the Open Wallet Standard Hackathon
