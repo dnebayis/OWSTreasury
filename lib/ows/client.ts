@@ -9,8 +9,10 @@ import { v4 as uuidv4 } from "uuid";
 
 const execAsync = promisify(exec);
 
-// Standard OWS vault location
-const GLOBAL_VAULT_PATH = path.join(os.homedir(), ".ows", "wallets");
+// Use /tmp on serverless (Vercel), fall back to home dir locally
+const GLOBAL_VAULT_PATH = process.env.VERCEL
+  ? path.join("/tmp", ".ows", "wallets")
+  : path.join(os.homedir(), ".ows", "wallets");
 
 /**
  * OWS SDK wrapper - Stateless & Cloud-Native
