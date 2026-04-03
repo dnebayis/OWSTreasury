@@ -20,12 +20,11 @@ export const DEFAULT_LLM_CONFIG: LLMConfig = {
 };
 
 const PRESET_MODELS = [
-  { label: "Qwen Max", value: "qwen-max", group: "Alibaba Qwen" },
-  { label: "Qwen Plus", value: "qwen-plus", group: "Alibaba Qwen" },
-  { label: "Qwen Turbo", value: "qwen-turbo", group: "Alibaba Qwen" },
+  { label: "Qwen Max", value: "qwen-max", group: "Qwen" },
+  { label: "Qwen Plus", value: "qwen-plus", group: "Qwen" },
+  { label: "Qwen Turbo", value: "qwen-turbo", group: "Qwen" },
   { label: "GPT-4o", value: "gpt-4o", group: "OpenAI" },
   { label: "GPT-4o Mini", value: "gpt-4o-mini", group: "OpenAI" },
-  { label: "GPT-3.5 Turbo", value: "gpt-3.5-turbo", group: "OpenAI" },
   { label: "Custom", value: "__custom__", group: "Other" },
 ];
 
@@ -35,7 +34,6 @@ const BASE_URL_PRESETS: Record<string, string> = {
   "qwen-turbo": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
   "gpt-4o": "https://api.openai.com/v1",
   "gpt-4o-mini": "https://api.openai.com/v1",
-  "gpt-3.5-turbo": "https://api.openai.com/v1",
 };
 
 export function loadLLMConfig(): LLMConfig {
