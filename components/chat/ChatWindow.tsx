@@ -15,7 +15,7 @@ import {
 import { v4 as uuidv4 } from "uuid";
 import dynamic from "next/dynamic";
 import PolicyConfig from "../dashboard/PolicyConfig";
-import LLMSettings, { loadLLMConfig } from "../dashboard/LLMSettings";
+import LLMSettings, { loadLLMConfig, DEFAULT_LLM_CONFIG } from "../dashboard/LLMSettings";
 
 interface PendingTransaction {
   walletName: string;
@@ -98,7 +98,8 @@ export default function ChatWindow() {
           messages: [...messages, userMessage],
           model: llmConfig.model || undefined,
           apiKey: llmConfig.apiKey || undefined,
-          baseURL: llmConfig.baseURL || undefined,
+          // Only send baseURL if user explicitly customised it
+          baseURL: llmConfig.baseURL !== DEFAULT_LLM_CONFIG.baseURL ? llmConfig.baseURL : undefined,
         }),
       });
 

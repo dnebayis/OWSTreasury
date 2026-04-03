@@ -16,7 +16,7 @@ export interface LLMConfig {
 export const DEFAULT_LLM_CONFIG: LLMConfig = {
   model: "qwen-max",
   apiKey: "",
-  baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  baseURL: "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
 };
 
 const PRESET_MODELS = [
@@ -30,9 +30,9 @@ const PRESET_MODELS = [
 ];
 
 const BASE_URL_PRESETS: Record<string, string> = {
-  "qwen-max": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-  "qwen-plus": "https://dashscope.aliyuncs.com/compatible-mode/v1",
-  "qwen-turbo": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "qwen-max": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+  "qwen-plus": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+  "qwen-turbo": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
   "gpt-4o": "https://api.openai.com/v1",
   "gpt-4o-mini": "https://api.openai.com/v1",
   "gpt-3.5-turbo": "https://api.openai.com/v1",
