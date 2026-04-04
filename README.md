@@ -101,6 +101,12 @@ flowchart LR
 | Client-side approval UI | ✅ | TransactionCard — never auto-signs |
 | Secure signing | ✅ | Private keys stay in OWS vault |
 | EVM broadcast pipeline | ✅ | Build unsigned tx → OWS sign → viem broadcast |
+| Solana broadcast pipeline | ✅ | Build unsigned tx → OWS sign → web3.js broadcast |
+| ETH/SOL → USD price feed | ✅ | CoinGecko, auto-calculated for policy checks |
+| Transaction History UI | ✅ | History panel with explorer links |
+| Password auth gate | ✅ | SITE_PASSWORD env var, session-based |
+| User-friendly errors | ✅ | Technical errors mapped to readable messages |
+| Wallet backup / export | ✅ | Download encrypted vault blob |
 | Policy Admin panel | ✅ | Whitelist management, guardrail configuration |
 | LLM Settings panel | ✅ | Switch model (Qwen/GPT) without redeploying |
 | Chat history | ✅ | Supabase-persisted across sessions |
@@ -219,6 +225,9 @@ NEXT_PUBLIC_SOLANA_RPC=https://api.devnet.solana.com
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+
+# Optional: password gate (omit to disable auth in dev)
+SITE_PASSWORD=your-secret-password
 ```
 
 ### 4. Run
@@ -272,7 +281,12 @@ If Supabase is unreachable, all transactions are denied by default (fail-closed)
 | POST | `/api/wallet/create` | Create new wallet |
 | POST | `/api/wallet/balance` | Get wallet balance |
 | POST | `/api/wallet/sign` | Execute approved signing |
+| GET | `/api/wallet/export?name=...` | Download encrypted vault blob |
+| GET | `/api/history` | Fetch audit log (last 50 entries) |
+| POST | `/api/auth/verify` | Validate SITE_PASSWORD |
 | GET | `/api/summary` | Dashboard stats |
+
+All endpoints require `x-ows-auth: 1` header when `SITE_PASSWORD` is set.
 
 ---
 
@@ -313,6 +327,9 @@ User sees TransactionCard (from, to, amount, gas, policy status)
 - Policy engine runs **before** the approval card appears
 - All operations are recorded in **Supabase audit_logs**
 - Hallucination guard blocks AI from fabricating fake tx hashes
+- Optional password gate (`SITE_PASSWORD`) protects the entire app
+- `x-ows-auth` header required on all API calls when auth is enabled
+- Technical errors are mapped to user-friendly messages (no raw stack traces)
 
 ---
 
@@ -337,6 +354,9 @@ solana airdrop 2 <YOUR_ADDRESS> --url https://api.devnet.solana.com
 | Supabase empty | Run the SQL schema setup above |
 | RPC timeout | Verify Infura/RPC URLs in `.env.local` |
 | Build error on Vercel | `@open-wallet-standard/core` must be in `serverExternalPackages` in `next.config.ts` |
+| Auth 401 on all API calls | Set `SITE_PASSWORD` env var on Vercel, or omit it entirely for dev |
+| Password gate loops | Clear sessionStorage (`ows_auth` key) and reload |
+| Export returns 404 | Wallet name must match exactly — check Supabase `vault_data` table |
 
 ---
 

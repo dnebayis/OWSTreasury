@@ -8,6 +8,12 @@
 | Qwen AI agent (11 tools) | ✅ | OpenAI-compatible function calling |
 | Transaction approval flow | ✅ | Client-side TransactionCard, no auto-sign |
 | EVM broadcast pipeline | ✅ | Build unsigned tx → OWS sign → viem broadcast |
+| Solana broadcast pipeline | ✅ | Build unsigned tx → OWS sign → web3.js broadcast |
+| ETH/SOL → USD price feed | ✅ | CoinGecko free API, 60s in-memory cache |
+| Transaction History UI | ✅ | History panel, /api/history, explorer links |
+| Password auth gate | ✅ | SITE_PASSWORD env var, PasswordGate component, x-ows-auth header |
+| User-friendly error messages | ✅ | lib/errors.ts maps technical errors to readable Turkish messages |
+| Wallet backup / export | ✅ | GET /api/wallet/export → downloadable encrypted JSON |
 | Hallucination guard | ✅ | Route-level detection + prompt rules |
 | Policy engine | ✅ | Supabase-backed, 4 policy types, fail-closed on DB outage |
 | Policy Admin UI | ✅ | Whitelist, guardrails, audit log |
@@ -16,7 +22,7 @@
 | Chat history persistence | ✅ | Supabase chat_messages |
 | Audit logging | ✅ | Supabase audit_logs with correct operation names |
 | EVM (Sepolia) | ✅ | viem, live balance + simulation + broadcast |
-| Solana (Devnet) | ✅ | @solana/web3.js, lamport → SOL conversion |
+| Solana (Devnet) | ✅ | @solana/web3.js, lamport → SOL conversion, full signing |
 | DB schema | ⚠️ | Must be created in Supabase manually |
 
 ---
@@ -112,38 +118,47 @@ ows-treasury-agent/
 ├── app/
 │   ├── layout.tsx                    # Root layout (dark mode, fonts)
 │   ├── globals.css                   # Theme, markdown styles, scrollbar
-│   ├── page.tsx                      # Entry point → ChatWindow
+│   ├── page.tsx                      # Entry point → PasswordGate → ChatWindow
 │   ├── dashboard/page.tsx            # Standalone wallet dashboard
 │   └── api/
 │       ├── agent/route.ts            # Qwen streaming, hallucination guard, intercepts sign calls
 │       ├── summary/route.ts          # Dashboard stats
+│       ├── history/route.ts          # GET audit logs (last 50)
+│       ├── auth/
+│       │   └── verify/route.ts       # POST — validates SITE_PASSWORD
 │       └── wallet/
 │           ├── create/route.ts
 │           ├── list/route.ts
 │           ├── balance/route.ts
-│           └── sign/route.ts         # Executes approved signing
+│           ├── sign/route.ts         # Executes approved signing
+│           └── export/route.ts       # GET — downloads encrypted vault blob
 ├── lib/
 │   ├── ows/
 │   │   ├── client.ts                 # Cloud-native OWS programmatic API wrapper
-│   │   ├── signer.ts                 # signAndSend: build → sign → broadcast
+│   │   ├── signer.ts                 # signAndSend: build → sign → broadcast (EVM + Solana)
 │   │   └── policy.ts                 # 4-rule policy engine, fail-closed on DB outage
 │   ├── agent/
 │   │   ├── tools.ts                  # 11 Zod-validated tool definitions
-│   │   ├── executor.server.ts        # Tool execution logic
+│   │   ├── executor.server.ts        # Tool execution logic, auto USD calculation
 │   │   └── prompts.ts                # Qwen system prompt with anti-hallucination rules
 │   ├── chains/
 │   │   ├── evm.ts                    # viem: balance, simulation, build + broadcast
-│   │   └── solana.ts                 # web3.js: balance (lamports→SOL), simulation
+│   │   └── solana.ts                 # web3.js: balance, build unsigned tx, broadcast
 │   ├── db/
 │   │   └── index.ts                  # Supabase client + all table operations
+│   ├── price.ts                      # CoinGecko ETH/SOL→USD, 60s in-memory cache
+│   ├── errors.ts                     # friendlyError(): maps raw errors to readable messages
 │   └── utils.ts
 ├── components/
+│   ├── auth/
+│   │   └── PasswordGate.tsx          # Full-screen password gate, 3-attempt lockout
 │   ├── chat/
-│   │   ├── ChatWindow.tsx            # Main interface: header, messages, input, approval intercept
+│   │   ├── ChatWindow.tsx            # Main interface: header, messages, input, panels
 │   │   ├── MessageBubble.tsx         # User/assistant bubbles with markdown
 │   │   ├── MarkdownContent.tsx       # Lightweight markdown renderer
 │   │   ├── ToolCallCard.tsx          # Collapsible tool inspector
 │   │   ├── TransactionCard.tsx       # Approval UI (Authorize / Terminate)
+│   │   ├── TransactionHistory.tsx    # History panel: audit log table + explorer links
 │   │   └── SimulationDiff.tsx        # Before/after balance visualizer
 │   ├── dashboard/
 │   │   ├── DashboardSummary.tsx      # Compact 4-stat header bar
@@ -264,6 +279,10 @@ insert into policy_settings (id, name, value, is_enabled) values
 - ✅ Whitelist checks chain type (EVM address cannot pass Solana whitelist)
 - ✅ Policy settings DB outage → fail-closed (deny all)
 - ✅ Hallucination guard prevents fake tx hashes reaching the user
+- ✅ Optional password gate (SITE_PASSWORD) — all API routes check x-ows-auth header
+- ✅ PasswordGate: 3-attempt max with 30s lockout after failure
+- ✅ Technical errors mapped to user-friendly messages — no raw stack traces exposed
+- ✅ Wallet export returns encrypted blob only (private key never leaves OWS vault)
 
 ---
 
@@ -272,9 +291,8 @@ insert into policy_settings (id, name, value, is_enabled) values
 | Item | Status |
 |------|--------|
 | ENS name resolution | Not implemented |
-| Token price feed (USD) | Not implemented — amountUSD must be passed manually |
 | ERC-20 token balances | Stub returns 0 |
-| Solana full transaction building | Partial — signature flow incomplete |
 | Mainnet support | Blocked by policy (testnet only) |
 | Hardware wallet | Not planned |
 | Concurrent vault access | No file locking — concurrent requests to same wallet may race |
+| Price feed cache scope | In-memory only — resets between Vercel cold starts |

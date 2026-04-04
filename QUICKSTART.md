@@ -63,6 +63,9 @@ NEXT_PUBLIC_SOLANA_RPC=https://api.devnet.solana.com
 
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY
+
+# Optional: enable password gate (omit to skip auth in dev)
+# SITE_PASSWORD=your-secret-password
 ```
 
 ### Step 4 — Run
@@ -124,6 +127,21 @@ Click "Settings" in header → LLM Settings panel
 → Save — takes effect on next message
 ```
 
+### View transaction history
+```
+Click "History" in header → Transaction History panel
+→ Shows all signed transactions from audit_logs
+→ Click any tx hash to open Sepolia Etherscan or Solana Explorer
+```
+
+### Export wallet backup
+```
+Click "Export Backup" on the welcome screen
+→ Downloads ows-backup-<name>-<date>.json
+→ Contains encrypted vault blob (private key not exposed)
+→ Store in a safe place — required for recovery if Supabase is lost
+```
+
 ---
 
 ## Get Testnet Funds
@@ -147,6 +165,10 @@ solana airdrop 2 YOUR_SOLANA_ADDRESS --url https://api.devnet.solana.com
 | Vercel build fails | Ensure `@open-wallet-standard/core` is in `serverExternalPackages` in `next.config.ts` |
 | Agent sends tx twice | Update to latest — hallucination guard false-positive was fixed |
 | No wallets showing | Tables may not exist — run Step 2 SQL |
+| Password gate won't unlock | Check `SITE_PASSWORD` value in Vercel env vars matches what you typed |
+| All API calls return 401 | Set `SITE_PASSWORD` on Vercel, or remove it entirely for local dev |
+| History panel is empty | No signed transactions yet — send one first |
+| Export returns 404 | Wallet name must match exactly — check Supabase `vault_data` table |
 
 ---
 
