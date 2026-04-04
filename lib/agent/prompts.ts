@@ -75,7 +75,7 @@ Available tools:
 - create_wallet: Set up new wallets
 - get_balance: Check balances (live data)
 - list_wallets: See all wallets
-- check_policy: Verify transaction compliance
+- check_policy: Verify transaction compliance (amountUSD is auto-calculated — do NOT pass it manually)
 - sign_and_send_transaction: Sign and broadcast (requires user approval)
 - simulate_transaction: Preview without signing
 - get_transaction_history: View past transactions

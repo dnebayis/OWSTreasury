@@ -4,6 +4,8 @@ import type { Transaction, ChainType } from "@/types";
 import { addAuditLog } from "@/lib/db";
 import { v4 as uuidv4 } from "uuid";
 import { buildUnsignedEVMTransaction, broadcastEVMTransaction } from "@/lib/chains/evm";
+import { buildUnsignedSolanaTransaction, broadcastSolanaTransaction } from "@/lib/chains/solana";
+import { friendlyError } from "@/lib/errors";
 
 /**
  * Signing operations - integrates OWS with policy engine
@@ -58,9 +60,18 @@ export class Signer {
         // 3. Attach signature and broadcast via viem → real tx hash
         txHash = await broadcastEVMTransaction(unsignedTx, signatureHex);
       } else {
-        // Solana path — OWS handles end-to-end, returns signature
+        // Solana path: build → OWS sign → broadcast
         fromAddress = wallet.addresses.find((a) => a.chain === "solana")?.address || "";
-        txHash = await owsClient.signTransaction(walletName, chain, transaction);
+        if (!fromAddress) throw new Error(`Wallet '${walletName}' has no Solana address`);
+
+        const { transaction: solanaTx, serializedBase64 } = await buildUnsignedSolanaTransaction({
+          from: fromAddress,
+          to,
+          amount,
+        });
+
+        const signatureHex = await owsClient.signTransaction(walletName, chain, { hex: serializedBase64 });
+        txHash = await broadcastSolanaTransaction(solanaTx, signatureHex);
       }
 
       // Create transaction record
@@ -91,7 +102,8 @@ export class Signer {
 
       return { hash: txHash, transaction: txRecord };
     } catch (error) {
-      throw new Error(`Failed to sign and send transaction: ${error instanceof Error ? error.message : String(error)}`);
+      const raw = error instanceof Error ? error.message : String(error);
+      throw new Error(friendlyError(raw));
     }
   }
 

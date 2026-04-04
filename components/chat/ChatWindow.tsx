@@ -10,12 +10,13 @@ import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import {
   Send, AlertCircle, Shield, X, ArrowLeft,
-  Wallet, Activity, Plus, Zap, CornerDownLeft, Settings,
+  Wallet, Activity, Plus, Zap, CornerDownLeft, Settings, History,
 } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import dynamic from "next/dynamic";
 import PolicyConfig from "../dashboard/PolicyConfig";
 import LLMSettings, { loadLLMConfig, DEFAULT_LLM_CONFIG } from "../dashboard/LLMSettings";
+import { TransactionHistory } from "./TransactionHistory";
 
 interface PendingTransaction {
   walletName: string;
@@ -64,7 +65,7 @@ export default function ChatWindow() {
   } = useChatStore();
 
   const [input, setInput] = useState("");
-  const [activePanel, setActivePanel] = useState<"chat" | "policy" | "settings">("chat");
+  const [activePanel, setActivePanel] = useState<"chat" | "policy" | "settings" | "history">("chat");
   const [pendingTx, setPendingTx] = useState<PendingTransaction | null>(null);
   const [isSigning, setIsSigning] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -118,9 +119,10 @@ export default function ChatWindow() {
 
     try {
       const llmConfig = loadLLMConfig();
+      const authToken = typeof window !== "undefined" ? sessionStorage.getItem("ows_auth") ?? "" : "";
       const response = await fetch("/api/agent", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-ows-auth": authToken },
         body: JSON.stringify({
           messages: [...messages, userMessage],
           model: llmConfig.model || undefined,
@@ -204,15 +206,16 @@ export default function ChatWindow() {
     if (!pendingTx) return;
     setIsSigning(true);
     try {
+      const authToken = typeof window !== "undefined" ? sessionStorage.getItem("ows_auth") ?? "" : "";
       const res = await fetch("/api/wallet/sign", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-ows-auth": authToken },
         body: JSON.stringify(pendingTx),
       });
       const result = await res.json();
       const msg = result.success
         ? `✅ Transaction signed & broadcast.\nHash: \`${result.data?.hash ?? "N/A"}\``
-        : `❌ Signing failed: ${result.error}`;
+        : `❌ ${result.error}`;
       addMessage({ id: uuidv4(), role: "assistant", content: msg, timestamp: new Date().toISOString() });
     } catch (err) {
       addMessage({ id: uuidv4(), role: "assistant", content: `❌ Signing error: ${String(err)}`, timestamp: new Date().toISOString() });
@@ -275,6 +278,10 @@ export default function ChatWindow() {
               </Button>
             ) : (
               <>
+                <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground" onClick={() => setActivePanel("history")}>
+                  <History className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">History</span>
+                </Button>
                 <Button variant="ghost" size="sm" className="h-8 text-xs gap-1.5 text-muted-foreground hover:text-foreground" onClick={() => setActivePanel("policy")}>
                   <Shield className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Policy</span>
@@ -299,7 +306,15 @@ export default function ChatWindow() {
 
         {/* ── Content ── */}
         <div className="flex-1 overflow-y-auto">
-          {activePanel === "policy" ? (
+          {activePanel === "history" ? (
+            <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-6">
+              <h2 className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+                <History className="h-4 w-4 text-primary" />
+                İşlem Geçmişi
+              </h2>
+              <TransactionHistory />
+            </div>
+          ) : activePanel === "policy" ? (
             <div className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-6">
               <PolicyConfig onClose={() => setActivePanel("chat")} />
             </div>
@@ -343,6 +358,19 @@ export default function ChatWindow() {
                       </button>
                     ))}
                   </div>
+
+                  {/* Wallet backup hint */}
+                  <p className="text-[10px] text-muted-foreground/50 mt-3">
+                    Cüzdan yedeklemek için:{" "}
+                    <a
+                      href="/api/wallet/export?name=treasury-main"
+                      className="underline hover:text-muted-foreground"
+                      title="Şifrelenmiş yedek dosyasını indir"
+                    >
+                      Backup İndir
+                    </a>
+                    {" "}— dosya şifrelenmiştir, güvenli bir yerde saklayın.
+                  </p>
                 </div>
               ) : (
                 /* ── Message list ── */

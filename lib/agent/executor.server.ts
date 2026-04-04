@@ -8,6 +8,7 @@ import { signer } from "@/lib/ows/signer";
 import { getEVMBalance, simulateEVMTransaction } from "@/lib/chains/evm";
 import { getSolanaBalance, simulateSolanaTransaction } from "@/lib/chains/solana";
 import { addAuditLog, getAuditLogs, saveWallet } from "@/lib/db";
+import { toUSD } from "@/lib/price";
 import { v4 as uuidv4 } from "uuid";
 import type { ToolName, ToolInput } from "@/lib/agent/tools";
 import type { ToolResult, AuditLogEntry, ChainType } from "@/types";
@@ -110,14 +111,20 @@ export class ToolExecutor {
   }
 
   private async checkPolicy(input: ToolInput): Promise<ToolResult> {
-    const { walletName, chain, to, amount, amountUSD, transaction } = input as {
+    const { walletName, chain, to, amount, transaction } = input as {
       walletName?: string;
       chain: string;
       to: string;
       amount: string;
-      amountUSD?: number;
       transaction?: any;
     };
+    let { amountUSD } = input as { amountUSD?: number };
+
+    // Auto-calculate USD value if not provided
+    if (!amountUSD || amountUSD === 0) {
+      const priceToken = chain === "solana" ? "SOL" : "ETH";
+      amountUSD = await toUSD(amount, priceToken).catch(() => 0);
+    }
 
     const { policyEngine } = await import("@/lib/ows/policy");
     const result = await policyEngine.check({
@@ -167,6 +174,9 @@ export class ToolExecutor {
       token: string;
     };
 
+    const priceToken = chain === "solana" ? "SOL" : "ETH";
+    const amountUSD = await toUSD(amount, priceToken).catch(() => 0);
+
     let result: any;
     if (chain === "evm") {
       result = await simulateEVMTransaction({ to, amount, token });
@@ -179,11 +189,17 @@ export class ToolExecutor {
       chain,
       to,
       amount,
+      amountUSD,
     });
 
     return {
       success: true,
-      data: { simulation: result, policy: policyResult },
+      data: {
+        simulation: result,
+        policy: policyResult,
+        amountUSD: amountUSD.toFixed(2),
+        pricePerToken: (amountUSD / parseFloat(amount || "1")).toFixed(2),
+      },
     };
   }
 
