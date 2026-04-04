@@ -13,6 +13,7 @@ export class PolicyEngine {
     chain: string;
     to: string;
     amount: string;
+    walletName?: string;
     amountUSD?: number;
     transaction?: any;
   }): Promise<PolicyCheckResult> {
@@ -34,6 +35,15 @@ export class PolicyEngine {
       getPolicySettings(),
     ]);
 
+    // If Supabase returned no settings at all, treat as a DB failure — deny to be safe
+    if (settingsRows.length === 0) {
+      return {
+        allowed: false,
+        reason: "Policy settings unavailable (DB unreachable). Transaction denied for safety.",
+        warnings: ["Could not load policy settings from database."],
+      };
+    }
+
     // Create a settings map
     const settings = new Map();
     settingsRows.forEach((s: any) => settings.set(s.id, s));
@@ -41,10 +51,14 @@ export class PolicyEngine {
     // 1. Whitelist Check
     const whitelistPolicy = settings.get("whitelist") || { is_enabled: false };
     if (whitelistPolicy.is_enabled) {
+      const txChain = params.chain ? params.chain.toLowerCase() : "";
       const isWhitelisted = whitelistRows.some(
-        (w: any) => w.address && w.address.toLowerCase() === params.to.toLowerCase()
+        (w: any) =>
+          w.address &&
+          w.address.toLowerCase() === params.to.toLowerCase() &&
+          (!w.chain || w.chain.toLowerCase() === txChain)
       );
-      
+
       if (!isWhitelisted) {
         allowed = false;
         warnings.push("Recipient address is not in the approved whitelist");
@@ -67,10 +81,11 @@ export class PolicyEngine {
       const maxPerHour = velocityPolicy.value?.maxPerHour || 3;
       const hourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       const logs = await getAuditLogs({ limit: 20 });
-      const recentSigns = (logs || []).filter((l: any) => 
-        l.operation === "sign" && 
+      const recentSigns = (logs || []).filter((l: any) =>
+        l.operation === "sign" &&
         l.status === "approved" &&
-        l.timestamp > hourAgo
+        l.timestamp > hourAgo &&
+        (!params.walletName || l.wallet_name === params.walletName)
       );
       if (recentSigns.length >= maxPerHour) {
         allowed = false;

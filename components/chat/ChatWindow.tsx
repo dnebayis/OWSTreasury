@@ -170,11 +170,14 @@ export default function ChatWindow() {
                 status: "pending",
               }];
             } else if (data.type === "tool_result") {
-              assistantToolCalls = assistantToolCalls.map((t) =>
-                t.name === data.result.name
-                  ? { ...t, output: data.result, status: "completed" }
-                  : t
-              );
+              let matched = false;
+              assistantToolCalls = assistantToolCalls.map((t) => {
+                if (!matched && t.name === data.name && t.status === "pending") {
+                  matched = true;
+                  return { ...t, output: data.result, status: "completed" };
+                }
+                return t;
+              });
             } else if (data.type === "pending_approval") {
               setPendingTx(data.transaction as PendingTransaction);
             }

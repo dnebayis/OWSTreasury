@@ -52,12 +52,13 @@ export class ToolExecutor {
     const wallet = await owsClient.createWallet(walletName, []);
 
     // 1. Log the operation
+    const createdChains = wallet.addresses.map((a) => a.chain).join(",");
     await addAuditLog({
       id: uuidv4(),
       timestamp: new Date().toISOString(),
       walletName,
-      chain: "evm",
-      operation: "balance_check",
+      chain: createdChains || "evm,solana",
+      operation: "create_wallet",
       status: "approved",
       userApproved: true,
     });
@@ -109,7 +110,8 @@ export class ToolExecutor {
   }
 
   private async checkPolicy(input: ToolInput): Promise<ToolResult> {
-    const { chain, to, amount, amountUSD, transaction } = input as {
+    const { walletName, chain, to, amount, amountUSD, transaction } = input as {
+      walletName?: string;
       chain: string;
       to: string;
       amount: string;
@@ -122,6 +124,7 @@ export class ToolExecutor {
       chain,
       to,
       amount,
+      walletName,
       amountUSD,
       transaction,
     });

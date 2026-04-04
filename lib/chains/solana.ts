@@ -22,10 +22,11 @@ export async function getSolanaBalance(address: string): Promise<{
 }> {
   try {
     const publicKey = new PublicKey(address);
-    const balance = await connection.getBalance(publicKey);
+    const lamports = await connection.getBalance(publicKey);
+    const sol = (lamports / 1e9).toFixed(9).replace(/\.?0+$/, "");
 
     return {
-      balance: balance.toString(),
+      balance: sol,
       token: "SOL",
       decimals: 9,
     };

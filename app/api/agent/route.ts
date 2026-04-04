@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
               try {
                 const result = await toolExecutor.execute(toolName as any, toolInput);
 
-                safeEnqueue({ type: "tool_result", toolCallId: toolCall.id, result });
+                safeEnqueue({ type: "tool_result", toolCallId: toolCall.id, name: toolName, result });
 
                 currentMessages.push({
                   role: "tool",
