@@ -74,8 +74,35 @@ export default function ChatWindow() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, pendingTx]);
 
+  const APPROVE_KEYWORDS = ["approve", "yes", "onay", "evet", "confirm", "ok", "onayla", "send", "gönder"];
+
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading) return;
+
+    // If a transaction is pending, intercept approve/reject keywords
+    if (pendingTx) {
+      const lower = input.trim().toLowerCase();
+      if (APPROVE_KEYWORDS.some((k) => lower === k || lower.startsWith(k))) {
+        setInput("");
+        handleApproveTransaction();
+        return;
+      }
+      const rejectWords = ["reject", "cancel", "no", "iptal", "hayır", "reddet"];
+      if (rejectWords.some((k) => lower === k || lower.startsWith(k))) {
+        setInput("");
+        handleRejectTransaction();
+        return;
+      }
+      // Any other message while pending — block and remind
+      setInput("");
+      addMessage({
+        id: uuidv4(),
+        role: "assistant",
+        content: "Please approve or reject the pending transaction above before sending a new message.",
+        timestamp: new Date().toISOString(),
+      });
+      return;
+    }
 
     const userMessage = {
       id: uuidv4(),
@@ -382,7 +409,7 @@ export default function ChatWindow() {
                       handleSendMessage();
                     }
                   }}
-                  placeholder="Ask your wallet anything…"
+                  placeholder={pendingTx ? "Type 'approve' or 'reject' for the pending transaction…" : "Ask your wallet anything…"}
                   className="h-11 bg-background/60 border-border/50 focus:border-primary/50 pr-16 placeholder:text-muted-foreground/50 transition-colors"
                   disabled={isLoading}
                 />
