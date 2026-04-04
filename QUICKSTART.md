@@ -1,6 +1,6 @@
 # Quick Start — OWS Treasury Agent
 
-## 5-Minute Setup
+## 4-Step Setup
 
 ### Step 1 — Install dependencies
 
@@ -53,6 +53,7 @@ insert into policy_settings (id, name, value, is_enabled) values
 ### Step 3 — Configure `.env.local`
 
 ```bash
+# Qwen AI — use international endpoint (not dashscope.aliyuncs.com)
 QWEN_API_KEY=sk-...
 QWEN_API_BASE=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
 QWEN_MODEL=qwen-max
@@ -62,64 +63,65 @@ NEXT_PUBLIC_SOLANA_RPC=https://api.devnet.solana.com
 
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=YOUR_ANON_KEY
-
-OWS_VAULT_PATH=~/.ows/wallets
 ```
 
-### Step 4 — Install & init OWS CLI
-
-```bash
-npm install -g @open-wallet-standard/core
-ows init --vault ~/.ows/wallets
-```
-
-### Step 5 — Run
+### Step 4 — Run
 
 ```bash
 pnpm dev
 # → http://localhost:3000
 ```
 
+> No OWS CLI installation needed — the app uses `@open-wallet-standard/core` programmatically.
+
 ---
 
 ## Test Flows
 
-### ✅ Create a wallet
+### Create a wallet
 ```
 "Create a new wallet called treasury-main"
-→ Agent calls create_wallet → OWS CLI generates addresses → Saved to Supabase
+→ Agent calls create_wallet → OWS generates addresses → Saved to Supabase
 ```
 
-### ✅ Check balance
+### Check balance
 ```
 "What's my ETH balance on treasury-main?"
 → Agent calls get_balance → Live Sepolia RPC call → Shows balance
 ```
 
-### ✅ Simulate a transaction
+### Simulate a transaction
 ```
 "Simulate sending 0.01 ETH to 0x742d35Cc6634C0532925a3b844Bc9e7595f742Dd"
 → simulate_transaction → check_policy → Shows gas estimate + policy result
 ```
 
-### ✅ Send with approval
+### Send with approval
 ```
 "Send 0.001 ETH to 0x742d35Cc6634C0532925a3b844Bc9e7595f742Dd"
 → Simulate → Policy check → TransactionCard appears
-→ Click "Authorize & Sign" → OWS signs → tx hash returned
+→ Click "Authorize & Sign" → OWS signs → real tx hash returned from Sepolia
 ```
 
-### ✅ Manage whitelist via chat
+### Manage whitelist via chat
 ```
 "Add 0x742d35Cc6634C0532925a3b844Bc9e7595f742Dd to whitelist as 'Test Address'"
 → Agent calls add_to_whitelist → Saved to Supabase whitelist_addresses
 ```
 
-### ✅ Configure policies via Policy Admin
+### Configure policies via Policy Admin
 ```
 Click "Policy" in header → Policy Admin panel
 → Toggle spending-limit ON → Edit limit from $100 → Save
 → Toggle velocity-limit ON → Edit from 3/hour → Save
+```
+
+### Switch LLM model
+```
+Click "Settings" in header → LLM Settings panel
+→ Select model from presets (Qwen Max, Plus, Turbo, GPT-4o, etc.)
+→ Optionally override base URL
+→ Save — takes effect on next message
 ```
 
 ---
@@ -139,10 +141,11 @@ solana airdrop 2 YOUR_SOLANA_ADDRESS --url https://api.devnet.solana.com
 
 | Problem | Fix |
 |---------|-----|
-| "Wallet not found" | `ows init --vault ~/.ows/wallets` |
+| 401 API key error | Use `dashscope-intl.aliyuncs.com` not `dashscope.aliyuncs.com`. Check `QWEN_API_KEY` in env. |
 | Policy always blocks | Run SQL seed for `policy_settings` (Step 2) |
 | Supabase writes silently fail | Check `NEXT_PUBLIC_SUPABASE_URL` and `ANON_KEY` |
-| Qwen API error | Verify `QWEN_API_KEY` and `QWEN_API_BASE` |
+| Vercel build fails | Ensure `@open-wallet-standard/core` is in `serverExternalPackages` in `next.config.ts` |
+| Agent sends tx twice | Update to latest — hallucination guard false-positive was fixed |
 | No wallets showing | Tables may not exist — run Step 2 SQL |
 
 ---

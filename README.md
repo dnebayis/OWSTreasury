@@ -17,11 +17,11 @@ flowchart TD
     Agent["Qwen AI Agent\n/api/agent"]
     Executor["Tool Executor\n11 tools"]
     Policy["Policy Engine"]
-    OWS["OWS CLI\nows wallet / ows sign"]
+    OWS["OWS Programmatic API\n@open-wallet-standard/core"]
     EVM["viem\nSepolia RPC"]
     SOL["@solana/web3.js\nDevnet RPC"]
     DB[("Supabase\nCloud DB")]
-    Vault["~/.ows/wallets\nTransient Local"]
+    Vault["/tmp/.ows/wallets\nTransient Local"]
     SignAPI["POST /api/wallet/sign"]
 
     User -->|"Natural language"| Chat
@@ -56,14 +56,14 @@ sequenceDiagram
     Chat->>Agent: POST /api/agent
     Agent->>Agent: simulate_transaction
     Agent->>Policy: check_policy
-    Policy-->>Agent: ✅ allowed
+    Policy-->>Agent: allowed: true
     Agent-->>Chat: pending_approval event
     Chat-->>User: Shows TransactionCard
     User->>Chat: Click "Authorize & Sign"
     Chat->>OWS: POST /api/wallet/sign
-    OWS->>OWS: ows sign tx (key never leaves vault)
+    OWS->>OWS: Build unsigned tx → OWS sign → broadcast
     OWS-->>Chat: tx hash
-    Chat-->>User: ✅ Broadcast confirmation
+    Chat-->>User: Transaction signed & broadcast
 ```
 
 ### Storage Architecture
@@ -72,8 +72,8 @@ sequenceDiagram
 flowchart LR
     subgraph "OWS Vault (Cloud-Native)"
         direction TB
-        A["OWS CLI operation"] --> B["Restore from Supabase\n→ ~/.ows/*.json"]
-        B --> C["Execute CLI command"]
+        A["API request"] --> B["Restore from Supabase\n→ /tmp/.ows/*.json"]
+        B --> C["Run programmatic API\ncreateWallet / signTransaction"]
         C --> D["Sync back to Supabase"]
         D --> E["Purge local files"]
     end
@@ -100,9 +100,12 @@ flowchart LR
 | Transaction simulation | ✅ | Gas preview before signing |
 | Client-side approval UI | ✅ | TransactionCard — never auto-signs |
 | Secure signing | ✅ | Private keys stay in OWS vault |
+| EVM broadcast pipeline | ✅ | Build unsigned tx → OWS sign → viem broadcast |
 | Policy Admin panel | ✅ | Whitelist management, guardrail configuration |
+| LLM Settings panel | ✅ | Switch model (Qwen/GPT) without redeploying |
 | Chat history | ✅ | Supabase-persisted across sessions |
 | Audit log | ✅ | All operations recorded |
+| Hallucination guard | ✅ | Detects & blocks fake transaction results |
 | Markdown rendering | ✅ | Tables, code blocks, bold in AI responses |
 
 ---
@@ -111,12 +114,12 @@ flowchart LR
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | Next.js 16 (App Router) |
+| Framework | Next.js 15 (App Router) |
 | Language | TypeScript 5 (strict) |
 | Styling | Tailwind CSS 4 + shadcn/ui |
 | State | Zustand 5 |
 | AI | Qwen via OpenAI-compatible API |
-| Wallet | @open-wallet-standard/core |
+| Wallet | @open-wallet-standard/core (programmatic) |
 | EVM | viem 2 (Sepolia) |
 | Solana | @solana/web3.js (Devnet) |
 | Database | Supabase (all persistence) |
@@ -129,10 +132,9 @@ flowchart LR
 ### Prerequisites
 
 - Node.js 18+ with pnpm
-- Qwen API key (Alibaba DashScope)
+- Qwen API key (Alibaba DashScope International)
 - Infura Sepolia RPC endpoint
 - Supabase project (free tier works)
-- OWS CLI installed
 
 ### 1. Install
 
@@ -205,7 +207,7 @@ insert into policy_settings (id, name, value, is_enabled) values
 Create `.env.local`:
 
 ```bash
-# Qwen AI
+# Qwen AI (use international endpoint)
 QWEN_API_KEY=sk-...
 QWEN_API_BASE=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
 QWEN_MODEL=qwen-max
@@ -217,19 +219,9 @@ NEXT_PUBLIC_SOLANA_RPC=https://api.devnet.solana.com
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
-
-# OWS Vault
-OWS_VAULT_PATH=~/.ows/wallets
 ```
 
-### 4. Install OWS CLI
-
-```bash
-npm install -g @open-wallet-standard/core
-ows init --vault ~/.ows/wallets
-```
-
-### 5. Run
+### 4. Run
 
 ```bash
 pnpm dev
@@ -246,7 +238,7 @@ pnpm dev
 | `list_wallets` | List all wallets in vault |
 | `get_balance` | Fetch live on-chain balance |
 | `simulate_transaction` | Preview gas costs |
-| `check_policy` | Validate against spending/chain limits |
+| `check_policy` | Validate against spending/chain/whitelist limits |
 | `sign_and_send_transaction` | Sign with OWS vault — triggers client approval UI |
 | `get_transaction_history` | View audit logs |
 | `list_whitelist` | Show approved addresses |
@@ -265,7 +257,9 @@ Policies are evaluated in order before every transaction:
 | Testnet only | Always ON | No (hardcoded) |
 | Whitelist | OFF | Yes — via Policy Admin |
 | Daily spending limit | OFF | Yes — toggle + set $amount |
-| Velocity limit | OFF | Yes — toggle + set tx/hour |
+| Velocity limit (per wallet) | OFF | Yes — toggle + set tx/hour |
+
+If Supabase is unreachable, all transactions are denied by default (fail-closed).
 
 ---
 
@@ -302,10 +296,11 @@ User sees TransactionCard (from, to, amount, gas, policy status)
     │    POST /api/wallet/sign
     │         │
     │         ▼
-    │    OWS CLI: ows sign tx (private key never leaves vault)
+    │    Build unsigned tx (viem) → OWS sign → broadcast
+    │    (private key never leaves vault)
     │         │
     │         ▼
-    │    Broadcast to chain → return tx hash
+    │    Real tx hash returned from chain RPC
     │
     └─── User clicks "Terminate"
               │
@@ -317,6 +312,7 @@ User sees TransactionCard (from, to, amount, gas, policy status)
 - Every signing operation requires **explicit user click**
 - Policy engine runs **before** the approval card appears
 - All operations are recorded in **Supabase audit_logs**
+- Hallucination guard blocks AI from fabricating fake tx hashes
 
 ---
 
@@ -335,12 +331,12 @@ solana airdrop 2 <YOUR_ADDRESS> --url https://api.devnet.solana.com
 
 | Issue | Solution |
 |-------|----------|
-| Wallet not found | Run `ows init --vault ~/.ows/wallets` |
-| API key error | Check `QWEN_API_KEY` in `.env.local`, restart server |
+| API key 401 error | Check `QWEN_API_KEY` and use `dashscope-intl.aliyuncs.com` (not China endpoint) |
 | Policy always blocks | Check Supabase `policy_settings` table has seed rows |
 | Whitelist blocks all | Disable whitelist in Policy Admin panel |
 | Supabase empty | Run the SQL schema setup above |
 | RPC timeout | Verify Infura/RPC URLs in `.env.local` |
+| Build error on Vercel | `@open-wallet-standard/core` must be in `serverExternalPackages` in `next.config.ts` |
 
 ---
 
