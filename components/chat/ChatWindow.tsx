@@ -119,10 +119,9 @@ export default function ChatWindow() {
 
     try {
       const llmConfig = loadLLMConfig();
-      const authToken = typeof window !== "undefined" ? sessionStorage.getItem("ows_auth") ?? "" : "";
       const response = await fetch("/api/agent", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-ows-auth": authToken },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: [...messages, userMessage],
           model: llmConfig.model || undefined,
@@ -206,10 +205,9 @@ export default function ChatWindow() {
     if (!pendingTx) return;
     setIsSigning(true);
     try {
-      const authToken = typeof window !== "undefined" ? sessionStorage.getItem("ows_auth") ?? "" : "";
       const res = await fetch("/api/wallet/sign", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-ows-auth": authToken },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(pendingTx),
       });
       const result = await res.json();

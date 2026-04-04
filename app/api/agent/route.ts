@@ -5,14 +5,6 @@ import { TOOLS } from "@/lib/agent/tools";
 import { toolExecutor } from "@/lib/agent/executor.server";
 
 export async function POST(request: NextRequest) {
-  // Auth gate — skip if SITE_PASSWORD not configured
-  if (process.env.SITE_PASSWORD) {
-    const token = request.headers.get("x-ows-auth");
-    if (token !== "1") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
-
   try {
     const { messages, model } = await request.json();
 
