@@ -61,17 +61,25 @@ export async function POST(request: NextRequest) {
             const toolCalls = assistantMessage.tool_calls || [];
             if (toolCalls.length === 0 && assistantMessage.content) {
               const content = assistantMessage.content;
-              const hasTxPattern = /0x[a-fA-F0-9]{40,}/i.test(content);
+              const hashMatch = /0x[a-fA-F0-9]{40,}/i.exec(content);
               const hasTxVerb = /\b(transaction sent|tx sent|broadcast|confirmed|transaction hash|transaction complete|successfully sent)\b/i.test(content);
-              if (hasTxPattern && hasTxVerb) {
-                // Inject correction and loop again
-                currentMessages.push(assistantMessage as any);
-                currentMessages.push({
-                  role: "user",
-                  content:
-                    "STOP. You just fabricated a transaction result. You MUST call the sign_and_send_transaction tool — do NOT generate a hash or say the transaction was sent as plain text. Please call the tool now.",
+              if (hashMatch && hasTxVerb) {
+                // Only flag as hallucination if this hash is NOT already in the conversation history
+                // (if it's in history, the model is just referencing a real past result)
+                const hash = hashMatch[0].toLowerCase();
+                const alreadyInHistory = currentMessages.some((m: any) => {
+                  const c = typeof m.content === "string" ? m.content : JSON.stringify(m.content || "");
+                  return c.toLowerCase().includes(hash);
                 });
-                continue;
+                if (!alreadyInHistory) {
+                  currentMessages.push(assistantMessage as any);
+                  currentMessages.push({
+                    role: "user",
+                    content:
+                      "STOP. You just fabricated a transaction result. You MUST call the sign_and_send_transaction tool — do NOT generate a hash or say the transaction was sent as plain text. Please call the tool now.",
+                  });
+                  continue;
+                }
               }
             }
 
