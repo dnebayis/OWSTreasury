@@ -52,12 +52,12 @@ export class ToolExecutor {
     const wallet = await owsClient.createWallet(walletName, []);
 
     // 1. Log the operation
-    const createdChains = wallet.addresses.map((a) => a.chain).join(",");
+    const firstChain = wallet.addresses[0]?.chain ?? "evm";
     await addAuditLog({
       id: uuidv4(),
       timestamp: new Date().toISOString(),
       walletName,
-      chain: createdChains || "evm,solana",
+      chain: firstChain,
       operation: "create_wallet",
       status: "approved",
       userApproved: true,
