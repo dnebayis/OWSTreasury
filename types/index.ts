@@ -52,7 +52,7 @@ export interface AuditLogEntry {
   timestamp: string;
   walletName: string;
   chain: ChainType;
-  operation: "sign" | "simulate" | "policy_check" | "balance_check";
+  operation: "sign" | "simulate" | "policy_check" | "balance_check" | "create_wallet";
   status: "approved" | "rejected" | "pending" | "failed";
   txHash?: string;
   amount?: string;
