@@ -57,13 +57,30 @@ export async function POST(request: NextRequest) {
             const choice = response.choices[0];
             const assistantMessage = choice.message;
 
-            // 1. Send assistant message content if any
+            // 1. Hallucination guard: model claims a tx result but called no tools
+            const toolCalls = assistantMessage.tool_calls || [];
+            if (toolCalls.length === 0 && assistantMessage.content) {
+              const content = assistantMessage.content;
+              const hasTxPattern = /0x[a-fA-F0-9]{40,}/i.test(content);
+              const hasTxVerb = /\b(transaction sent|tx sent|broadcast|confirmed|transaction hash|transaction complete|successfully sent)\b/i.test(content);
+              if (hasTxPattern && hasTxVerb) {
+                // Inject correction and loop again
+                currentMessages.push(assistantMessage as any);
+                currentMessages.push({
+                  role: "user",
+                  content:
+                    "STOP. You just fabricated a transaction result. You MUST call the sign_and_send_transaction tool — do NOT generate a hash or say the transaction was sent as plain text. Please call the tool now.",
+                });
+                continue;
+              }
+            }
+
+            // 2. Send assistant message content if any
             if (assistantMessage.content) {
               safeEnqueue({ type: "message", content: assistantMessage.content });
             }
 
-            // 2. Handle Tool Calls
-            const toolCalls = assistantMessage.tool_calls || [];
+            // 3. Handle Tool Calls
             if (toolCalls.length === 0) {
               safeEnqueue({ type: "done" });
               break;
